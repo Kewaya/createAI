@@ -119,9 +119,6 @@ export function ContactClient() {
                 Hiring application
               </a>
             </div>
-            <p className="lead" style={{ marginTop: 12 }}>
-              Tip: update the destination email in <code>src/app/contact/ContactClient.tsx</code> to your official inbox.
-            </p>
           </div>
         </div>
       </section>

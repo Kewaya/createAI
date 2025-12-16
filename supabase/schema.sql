@@ -20,8 +20,19 @@ create table if not exists public.applications (
   application_data jsonb not null default '{}'::jsonb,
   status text not null default 'draft',
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   constraint applications_one_per_user unique (user_id)
 );
+
+-- If the table already existed (created by an older version of this schema),
+-- `create table if not exists` will NOT add new columns. Make the schema idempotent.
+alter table public.applications
+add column if not exists updated_at timestamptz not null default now();
+
+-- Backfill existing rows if the column was just added.
+update public.applications
+set updated_at = created_at
+where updated_at is null;
 
 create table if not exists public.assessment_responses (
   id uuid primary key default gen_random_uuid(),
@@ -56,6 +67,12 @@ $$;
 drop trigger if exists set_assessment_updated_at on public.assessment_responses;
 create trigger set_assessment_updated_at
 before update on public.assessment_responses
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists set_applications_updated_at on public.applications;
+create trigger set_applications_updated_at
+before update on public.applications
 for each row
 execute function public.set_updated_at();
 
@@ -204,5 +221,30 @@ using (
   bucket_id = 'assessment-uploads'
   and (storage.foldername(name))[1] = auth.uid()::text
 );
+
+-- =============
+-- Admin convenience view (Supabase dashboard / service role)
+-- =============
+-- This makes it easy to review applications + assessment progress in one place.
+create or replace view public.application_overview as
+select
+  a.user_id,
+  u.email,
+  a.status,
+  a.created_at,
+  a.updated_at,
+  a.application_data,
+  (
+    select count(*)::int
+    from public.assessment_responses r
+    where r.user_id = a.user_id
+  ) as assessment_responses_count,
+  (
+    select count(*)::int
+    from public.uploads up
+    where up.user_id = a.user_id
+  ) as uploads_count
+from public.applications a
+join public.users u on u.id = a.user_id;
 
 
