@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js/dist/module/index.js";
+import { createClient } from "@supabase/supabase-js";
 import { getRequiredPublicEnv } from "@/lib/env";
 
 export const supabase = createClient(
